@@ -18,8 +18,11 @@ jobs:
       - run: node --check static/app.js
       - run: python -m evaluation.run --split test --output /tmp/aegis-static
       - run: python -m evaluation.gate /tmp/aegis-static.json
+      - run: python -m evaluation.probe --output /tmp/aegis-challenge
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: static-evaluation
-          path: /tmp/aegis-static.*
+          path: |
+            /tmp/aegis-static.*
+            /tmp/aegis-challenge.*

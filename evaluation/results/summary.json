@@ -1,8 +1,9 @@
 {
   "status": "recorded",
-  "created_at": "2026-10-18T05:00:34.009729+00:00",
+  "created_at": "2026-10-18T05:24:03.423345+00:00",
+  "evaluation_revision": "v2-repaired-cases",
   "cases": 72,
-  "tests": 95,
+  "tests": 176,
   "model": "qwen3:4b",
   "strategies": {
     "baseline": {
@@ -24,7 +25,7 @@
       "declined_cases": 1,
       "invalid_predictions": 0,
       "p50_ms": 0.01,
-      "p95_ms": 0.05,
+      "p95_ms": 0.04,
       "prompt_tokens": 0,
       "completion_tokens": 0
     },
@@ -46,8 +47,8 @@
       "errors": 0,
       "declined_cases": 1,
       "invalid_predictions": 0,
-      "p50_ms": 0.01,
-      "p95_ms": 0.04,
+      "p50_ms": 0.02,
+      "p95_ms": 0.06,
       "prompt_tokens": 0,
       "completion_tokens": 0
     },
@@ -69,8 +70,8 @@
       "errors": 0,
       "declined_cases": 4,
       "invalid_predictions": 3,
-      "p50_ms": 1580.55,
-      "p95_ms": 2736.76,
+      "p50_ms": 1902.25,
+      "p95_ms": 3893.99,
       "prompt_tokens": 23523,
       "completion_tokens": 4653
     },
@@ -92,15 +93,15 @@
       "errors": 0,
       "declined_cases": 4,
       "invalid_predictions": 3,
-      "p50_ms": 1580.55,
-      "p95_ms": 2736.76,
+      "p50_ms": 1902.25,
+      "p95_ms": 3893.99,
       "prompt_tokens": 23523,
       "completion_tokens": 4653
     }
   },
   "explanation_passes": 12,
   "explanation_cases": 12,
-  "challenge_passes": 0,
+  "challenge_passes": 8,
   "challenge_cases": 8,
-  "limitations": "Co-designed public synthetic fixtures, not independent security accuracy. Revised static passes 72 main cases but fails all 8 separately targeted known-limit probes (including 2 regressions versus baseline). AI adds many false positives. Explanation checks validate structure/source quotes, not factual correctness or working fixes."
+  "limitations": "All 8 original edge cases now pass, including both known regressions. Their unchanged sources and labels informed repairs: regression evidence, not an independent holdout. The 96 main fixtures are also public and co-designed. AI detection remains less reliable than static analysis; quote/structure checks do not establish explanation truth or working fixes. 176 automated tests pass; original failures are retained."
 }

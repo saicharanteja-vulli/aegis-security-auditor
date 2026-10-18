@@ -1,0 +1,89 @@
+{
+  "notice": "Local HTTP scan and both exports verified on the eight repaired synthetic fixtures. No model call or source execution.",
+  "scan": {
+    "id": "55024ff26ec84694b5358adb9d002f58",
+    "name": "Eight repaired regression cases",
+    "created": "2026-10-18T05:25:16.164080+00:00",
+    "state": "completed",
+    "progress": 100,
+    "files": 8,
+    "lines": 12,
+    "findings": [
+      {
+        "origin": "static",
+        "id": "1f1b62f78c55812e5d9c",
+        "rule": "JS003",
+        "title": "Node shell execution",
+        "severity": "high",
+        "cwe": "CWE-78",
+        "path": "challenge/default-node-import.js",
+        "line": 2,
+        "confidence": "medium",
+        "detail": "Review whether untrusted input can reach this operation.",
+        "evidence": "cp.exec(command);",
+        "remediation": "Use execFile or spawn with a fixed executable, separate arguments, and shell disabled.",
+        "reference": "https://nodejs.org/api/child_process.html",
+        "status": "open",
+        "note": "",
+        "ai": null
+      },
+      {
+        "origin": "static",
+        "id": "f04bb0ab44fc04213c27",
+        "rule": "JS002",
+        "title": "Dynamic JavaScript execution",
+        "severity": "high",
+        "cwe": "CWE-95",
+        "path": "challenge/optional-eval.js",
+        "line": 1,
+        "confidence": "medium",
+        "detail": "Review whether untrusted input can reach this operation.",
+        "evidence": "eval?.(input);",
+        "remediation": "Replace dynamic evaluation with structured data parsing and allowlisted operations.",
+        "reference": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval",
+        "status": "open",
+        "note": "",
+        "ai": null
+      },
+      {
+        "origin": "static",
+        "id": "9e058c59ee0655e02acf",
+        "rule": "JS002",
+        "title": "Dynamic JavaScript execution",
+        "severity": "high",
+        "cwe": "CWE-95",
+        "path": "challenge/template-interpolation.js",
+        "line": 1,
+        "confidence": "medium",
+        "detail": "Review whether untrusted input can reach this operation.",
+        "evidence": "const view = `${eval(input)}`;",
+        "remediation": "Replace dynamic evaluation with structured data parsing and allowlisted operations.",
+        "reference": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval",
+        "status": "open",
+        "note": "",
+        "ai": null
+      }
+    ],
+    "warnings": [],
+    "events": [
+      {
+        "at": "2026-10-18T05:25:16.164878+00:00",
+        "text": "Source received. Read-only scan started."
+      },
+      {
+        "at": "2026-10-18T05:25:16.167837+00:00",
+        "text": "Inspected 8 files with 11 static rules."
+      },
+      {
+        "at": "2026-10-18T05:25:16.167843+00:00",
+        "text": "3 review leads collected. Source discarded from working memory; report saved locally."
+      }
+    ],
+    "error": "",
+    "analysis_mode": "static",
+    "model": "",
+    "analysis": []
+  },
+  "markdown_export_pass": true,
+  "json_export_pass": true
+}

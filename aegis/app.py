@@ -219,7 +219,7 @@ def report(sid:str,format:Literal['md','json']='md'):
     if scan['state']!='completed': raise HTTPException(409,'The report is ready after the scan completes.')
     if format=='json': content=json.dumps(scan,indent=2); media='application/json'
     else:
-        out=['# Aegis security review',scan['name'],f"Scanned: {scan['created']}",f"Scope: {scan['files']} files · {scan['lines']} lines · {len(RULES)} rules",'Static and optional AI review leads, not confirmed exploits. No source was executed. No findings does not prove security. JavaScript checks are heuristic; no dependency CVE lookup, runtime testing, or whole-program dataflow analysis is performed.','## Coverage notes',*scan['warnings'],'## Findings']
+        out=['# Aegis security review',scan['name'],f"Scanned: {scan['created']}",f"Scope: {scan['files']} files · {scan['lines']} lines · {len(RULES)} rules",'Static and optional AI review leads, not confirmed exploits. No source was executed. No findings does not prove security. JavaScript/TypeScript checks use syntax trees with bounded alias tracking; no dependency CVE lookup, runtime testing, or whole-program dataflow analysis is performed.','## Coverage notes',*scan['warnings'],'## Findings']
         out.extend(['Analysis mode: '+scan['analysis_mode'],'AI coverage: '+json.dumps(scan['analysis'])])
         for f in scan['findings']:
             out.extend([f"### {f['title']} ({f['severity']})",f"Location: {f['path']}:{f['line']} | {f['rule']} | {f['cwe']} | Confidence: {f['confidence']} | Origin: {f.get('origin','static')} | Status: {f['status']}",'Evidence: '+f['evidence'],f['detail'],'Remediation: '+f['remediation'],'Reference: '+f['reference'],'Reviewer note: '+f['note']])

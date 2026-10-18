@@ -6,6 +6,7 @@ import argparse
 from collections import Counter
 from datetime import datetime,timezone
 import hashlib
+from importlib.metadata import version
 import json
 import math
 from pathlib import Path
@@ -80,6 +81,9 @@ def main():
     cases=[case for case in data['cases'] if case['split']==args.split]
     report={'dataset_version':data['version'],'dataset_sha256':hashlib.sha256(raw).hexdigest(),
             'created_at':datetime.now(timezone.utc).isoformat(),'split':args.split,'python':platform.python_version(),
+            'evaluation_revision':'v2-repaired-cases',
+            'requirements_sha256':hashlib.sha256(Path('requirements.txt').read_bytes()).hexdigest(),
+            'dependency_versions':{name:version(name) for name in ['tree-sitter','tree-sitter-javascript','tree-sitter-typescript','httpx','pydantic']},
             'platform':platform.platform(),'detection_prompt':DETECT_SYSTEM,'detection_schema':DetectionResponse.model_json_schema(),
             'generation_settings':{'temperature':0,'seed':42,'num_ctx':8192,'num_predict':1100,'think':False},
             'source_sha256':{str(path):hashlib.sha256(path.read_bytes()).hexdigest() for folder in ('aegis','evaluation') for path in sorted(Path(folder).rglob('*.py'))},

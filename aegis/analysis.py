@@ -1,7 +1,6 @@
 """Bounded local syntax analysis, not whole-program taint analysis."""
 import ast
 from dataclasses import dataclass
-import re
 
 
 @dataclass(frozen=True)
@@ -22,6 +21,14 @@ class Locals(ast.NodeVisitor):
     visit_AsyncFunctionDef=visit_FunctionDef
     def visit_ClassDef(self,node): self.names.add(node.name)
     def visit_Lambda(self,node): pass
+    def visit_comprehension_scope(self,node):
+        # Only the first iterable executes in this enclosing scope; the target
+        # names must not become locals of the surrounding function.
+        self.visit(node.generators[0].iter)
+    visit_ListComp=visit_comprehension_scope
+    visit_SetComp=visit_comprehension_scope
+    visit_DictComp=visit_comprehension_scope
+    visit_GeneratorExp=visit_comprehension_scope
     def visit_Import(self,node):
         self.names.update(item.asname or item.name.split('.')[0] for item in node.names)
     def visit_ImportFrom(self,node):
@@ -98,9 +105,33 @@ class PythonReview(ast.NodeVisitor):
     visit_AsyncFunctionDef=visit_FunctionDef
 
     def visit_Lambda(self,node):
+        # Defaults are evaluated outside the lambda's parameter scope.
+        for expression in [*node.args.defaults,*[v for v in node.args.kw_defaults if v]]:
+            self.visit(expression)
         outer=self.env;self.env=dict(outer)
-        for arg in [*node.args.posonlyargs,*node.args.args,*node.args.kwonlyargs]: self.env[arg.arg]=UNKNOWN
+        parameters=[*node.args.posonlyargs,*node.args.args,*node.args.kwonlyargs]
+        if node.args.vararg: parameters.append(node.args.vararg)
+        if node.args.kwarg: parameters.append(node.args.kwarg)
+        for arg in parameters: self.env[arg.arg]=UNKNOWN
         self.visit(node.body);self.env=outer
+
+    def visit_comprehension_expression(self,node):
+        # Python evaluates the first iterable in the enclosing scope. Targets
+        # belong to the separate comprehension scope and never leak outside.
+        self.visit(node.generators[0].iter)
+        outer=self.env;self.env=dict(outer)
+        for generator in node.generators: self.assign(generator.target,UNKNOWN)
+        for index,generator in enumerate(node.generators):
+            if index: self.visit(generator.iter)
+            for condition in generator.ifs: self.visit(condition)
+        if isinstance(node,ast.DictComp):
+            self.visit(node.key);self.visit(node.value)
+        else: self.visit(node.elt)
+        self.env=outer
+    visit_ListComp=visit_comprehension_expression
+    visit_SetComp=visit_comprehension_expression
+    visit_DictComp=visit_comprehension_expression
+    visit_GeneratorExp=visit_comprehension_expression
 
     def visit_ClassDef(self,node):
         self.env[node.name]=UNKNOWN
@@ -142,57 +173,3 @@ class PythonReview(ast.NodeVisitor):
 
 def python_findings(source):
     reviewer=PythonReview();reviewer.visit(ast.parse(source));return reviewer.findings
-
-
-def javascript_mask(source,strings=True):
-    """Length-preserving lexical mask; deliberately not a JavaScript parser."""
-    output=list(source);index=0
-    def blank(start,end):
-        for pos in range(start,end):
-            if source[pos] not in '\r\n': output[pos]=' '
-    while index<len(source):
-        start=index
-        if source.startswith('//',index):
-            end=source.find('\n',index);index=len(source) if end<0 else end;blank(start,index)
-        elif source.startswith('/*',index):
-            end=source.find('*/',index+2);index=len(source) if end<0 else end+2;blank(start,index)
-        elif source[index] in '\"\'`':
-            quote=source[index];index+=1
-            while index<len(source):
-                if source[index]=='\\': index+=2
-                elif source[index]==quote: index+=1;break
-                else: index+=1
-            index=min(index,len(source))
-            if strings: blank(start,index)
-        elif source[index]=='/' and (not source[:index].rstrip() or source[:index].rstrip()[-1] in '=(:,[!&|?;{'):
-            index+=1;character_class=False
-            while index<len(source) and source[index]!='\n':
-                char=source[index]
-                if char=='\\': index+=2;continue
-                if char=='[': character_class=True
-                if char==']': character_class=False
-                index+=1
-                if char=='/' and not character_class: break
-            if strings: blank(start,min(index,len(source)))
-        else: index+=1
-    return ''.join(output)
-
-
-def javascript_findings(source):
-    code=javascript_mask(source)
-    imports=javascript_mask(source,strings=False)
-    matches=[]
-    for rule,pattern in [('JS001',r'\.innerHTML\s*=|\bdangerouslySetInnerHTML\s*='),
-                         ('JS002',r'\beval\s*\(|\bnew\s+Function\s*\(')]:
-        for match in re.finditer(pattern,code): matches.append((rule,source.count('\n',0,match.start())+1,'medium'))
-    modules={'child_process'};functions=set()
-    for match in re.finditer(r'''\b(?:const|let|var)\s+(\w+)\s*=\s*require\(\s*["'](?:node:)?child_process["']\s*\)''',imports): modules.add(match[1])
-    for match in re.finditer(r'''import\s+\*\s+as\s+(\w+)\s+from\s*["'](?:node:)?child_process["']''',imports): modules.add(match[1])
-    for match in re.finditer(r'''(?:\b(?:const|let|var)\s*\{([^}]+)\}\s*=\s*require\(\s*["'](?:node:)?child_process["']\s*\)|import\s*\{([^}]+)\}\s*from\s*["'](?:node:)?child_process["'])''',imports):
-        for entry in (match[1] or match[2]).split(','):
-            item=re.fullmatch(r'\s*(exec|execSync)(?:\s*(?::|as)\s*(\w+))?\s*',entry)
-            if item: functions.add(item[2] or item[1])
-    for match in re.finditer(r'\b(\w+)\s*\.\s*(exec|execSync)\s*\(|\b(\w+)\s*\(',code):
-        if match[1] in modules or match[3] in functions:
-            matches.append(('JS003',source.count('\n',0,match.start())+1,'medium'))
-    return sorted(set(matches),key=lambda item:(item[1],item[0]))

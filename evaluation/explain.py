@@ -7,7 +7,7 @@ from pathlib import Path
 import time
 import httpx
 from aegis.scanner import scan_file
-from aegis.intelligence import LocalReview,EXPLAIN_SYSTEM,Explanation,validate_explanation
+from aegis.intelligence import LocalReview,EXPLAIN_SYSTEM,Explanation,validate_explanation,endpoint
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
@@ -36,10 +36,15 @@ def main():
                  'contract_pass':assessment is not None,'latency_ms':round((time.perf_counter()-start)*1000,3)}
             rows.append(row);journal.write(json.dumps(row)+'\n');journal.flush();print(case['id'],error or 'contract passed',flush=True)
     report={'created_at':datetime.now(timezone.utc).isoformat(),'model':args.model,
-            'dataset_sha256':hashlib.sha256(dataset).hexdigest(),'selection':'First current-static finding per available test family in fixed dataset order.',
+            'dataset_sha256':hashlib.sha256(dataset).hexdigest(),
+            'source_sha256':{str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(Path('aegis').glob('*.py'))},
+            'generation_settings':{'temperature':0,'seed':42,'num_ctx':8192,'num_predict':1100,'think':False},
+            'selection':'First current-static finding per available test family in fixed dataset order.',
             'prompt':EXPLAIN_SYSTEM,'schema':Explanation.model_json_schema(),'cases':len(rows),
             'contract_passes':sum(row['contract_pass'] for row in rows),'rows':rows,
             'limitations':'Structural contract only: exact evidence, schema, bounded assumptions/verification steps, no generated URLs. No independent semantic review, exploit validation or fix testing; not explanation accuracy.'}
+    with httpx.Client(timeout=5,trust_env=False) as client:
+        response=client.get(endpoint()+'/api/tags');response.raise_for_status();report['installed_models']=response.json()['models']
     Path(str(args.output)+'.json').write_text(json.dumps(report,indent=2)+'\n')
     Path(str(args.output)+'.md').write_text(f"# Explanation contract evaluation\n\n{report['contract_passes']}/{len(rows)} responses passed the structural contract.\n\n{report['limitations']}\n\n"+'\n'.join(f"- {r['id']}: {r['error'] or 'contract passed'}" for r in rows)+'\n')
     print(json.dumps({key:value for key,value in report.items() if key not in {'rows','prompt','schema'}},indent=2))

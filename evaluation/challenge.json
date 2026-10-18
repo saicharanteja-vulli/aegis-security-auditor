@@ -1,5 +1,5 @@
 {
-  "description": "Post-test, hand-authored known-limit diagnostic probes. Not a hidden test or tuning set. No repairs made from these outcomes.",
+  "description": "Original hand-authored known-limit probes. The same eight sources and labels informed v2 repairs; these are regression cases, not an independent holdout.",
   "cases": [
     {
       "id": "template-interpolation",

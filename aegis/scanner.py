@@ -1,6 +1,7 @@
 """Read-only, bounded static checks. Findings are review leads, not exploit proofs."""
 import ast
-from .analysis import python_findings, javascript_findings
+from .analysis import python_findings
+from .javascript import javascript_review
 import hashlib
 import re
 from pathlib import PurePosixPath
@@ -51,8 +52,9 @@ def scan_file(path,source):
             return findings,warnings
         for rule,line,confidence in python_findings(source): add(rule,line,confidence)
     elif PurePosixPath(path).suffix.lower() in {'.js','.jsx','.ts','.tsx','.mjs','.cjs','.html'}:
-        for rule,line,confidence in javascript_findings(source): add(rule,line,confidence)
-        warnings.append(f'{path}: JavaScript/HTML checks use lexical heuristics, not a full parser or cross-file analysis.')
+        leads,notes=javascript_review(source,path)
+        for rule,line,confidence in leads: add(rule,line,confidence)
+        warnings.extend(f'{path}: {note}' for note in notes)
     return findings,warnings
 
 DEMO=[
