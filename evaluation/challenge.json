@@ -1,0 +1,84 @@
+{
+  "description": "Post-test, hand-authored known-limit diagnostic probes. Not a hidden test or tuning set. No repairs made from these outcomes.",
+  "cases": [
+    {
+      "id": "template-interpolation",
+      "family": "challenge",
+      "path": "challenge/template-interpolation.js",
+      "source": "const view = `${eval(input)}`;",
+      "expected": [
+        {
+          "rule": "JS002",
+          "line": 1
+        }
+      ],
+      "rationale": "Template interpolation is masked together with literal template text."
+    },
+    {
+      "id": "optional-eval",
+      "family": "challenge",
+      "path": "challenge/optional-eval.js",
+      "source": "eval?.(input);",
+      "expected": [
+        {
+          "rule": "JS002",
+          "line": 1
+        }
+      ],
+      "rationale": "Optional call syntax is outside the current regex."
+    },
+    {
+      "id": "default-node-import",
+      "family": "challenge",
+      "path": "challenge/default-node-import.js",
+      "source": "import cp from \"node:child_process\";\ncp.exec(command);",
+      "expected": [
+        {
+          "rule": "JS003",
+          "line": 2
+        }
+      ],
+      "rationale": "Default-import Node alias is not modeled."
+    },
+    {
+      "id": "lambda-shadow",
+      "family": "challenge",
+      "path": "challenge/lambda-shadow.py",
+      "source": "handler = lambda *eval: eval(user)",
+      "expected": [],
+      "rationale": "Lambda varargs shadow a builtin; current lambda visitor does not bind varargs."
+    },
+    {
+      "id": "comprehension-shadow",
+      "family": "challenge",
+      "path": "challenge/comprehension-shadow.py",
+      "source": "import pickle\nvalues = [pickle.loads(blob) for pickle in adapters]",
+      "expected": [],
+      "rationale": "Comprehension target shadows the module; scope is not modeled."
+    },
+    {
+      "id": "unrelated-method",
+      "family": "challenge",
+      "path": "challenge/unrelated-method.js",
+      "source": "customParser.eval(input);",
+      "expected": [],
+      "rationale": "A method called eval is not the global JavaScript builtin."
+    },
+    {
+      "id": "regex-after-return",
+      "family": "challenge",
+      "path": "challenge/regex-after-return.js",
+      "source": "function pattern() { return /eval(input)/; }",
+      "expected": [],
+      "rationale": "The lexical slash heuristic misses regex after return."
+    },
+    {
+      "id": "namespace-reassignment",
+      "family": "challenge",
+      "path": "challenge/namespace-reassignment.js",
+      "source": "let cp = require(\"child_process\");\ncp = customAdapter;\ncp.exec(command);",
+      "expected": [],
+      "rationale": "Node alias reassignment is not modeled; the custom adapter method is not a known shell API."
+    }
+  ]
+}

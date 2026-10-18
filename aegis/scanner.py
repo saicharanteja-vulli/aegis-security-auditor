@@ -1,5 +1,6 @@
 """Read-only, bounded static checks. Findings are review leads, not exploit proofs."""
 import ast
+from .analysis import python_findings, javascript_findings
 import hashlib
 import re
 from pathlib import PurePosixPath
@@ -36,7 +37,7 @@ def scan_file(path,source):
         title,severity,cwe,fix,url=RULES[rule]
         # Credential evidence is entirely withheld, including neighboring lines.
         snippet='[Credential-like value withheld]' if rule in {'SEC001','CFG001'} else redact(lines[line-1].strip())[:500]
-        findings.append(dict(id=hashlib.sha256(f'{path}:{rule}:{line}'.encode()).hexdigest()[:20],rule=rule,title=title,severity=severity,cwe=cwe,path=path,line=line,confidence=confidence,detail=detail,evidence=snippet,remediation=fix,reference=url,status='open',note='',ai=None))
+        findings.append(dict(origin='static',id=hashlib.sha256(f'{path}:{rule}:{line}'.encode()).hexdigest()[:20],rule=rule,title=title,severity=severity,cwe=cwe,path=path,line=line,confidence=confidence,detail=detail,evidence=snippet,remediation=fix,reference=url,status='open',note='',ai=None))
     for num,line in enumerate(lines,1):
         if SECRET.search(line) or TOKEN.search(line):
             match=SECRET.search(line)
@@ -48,35 +49,10 @@ def scan_file(path,source):
         except (SyntaxError,ValueError,RecursionError):
             warnings.append(f'{path}: Python parsing failed; only text-based checks ran.')
             return findings,warnings
-        aliases={}
-        for n in ast.walk(tree):
-            if isinstance(n,ast.Import):
-                for a in n.names: aliases[a.asname or a.name]=a.name
-            if isinstance(n,ast.ImportFrom):
-                for a in n.names: aliases[a.asname or a.name]=f'{n.module}.{a.name}'
-        def name(n):
-            if isinstance(n,ast.Name): return aliases.get(n.id,n.id)
-            if isinstance(n,ast.Attribute): return name(n.value)+'.'+n.attr
-            return ''
-        for n in ast.walk(tree):
-            if not isinstance(n,ast.Call): continue
-            fn=name(n.func); kw={x.arg:x.value for x in n.keywords}
-            yes=lambda key: key in kw and isinstance(kw[key],ast.Constant) and kw[key].value is True
-            no=lambda key: key in kw and isinstance(kw[key],ast.Constant) and kw[key].value is False
-            if fn in {'os.system','os.popen'} or (fn.startswith('subprocess.') and yes('shell')): add('PY001',n.lineno,'high')
-            if fn in {'eval','exec','builtins.eval','builtins.exec'}: add('PY002',n.lineno,'high')
-            if fn.endswith(('.execute','.executemany')) and n.args and isinstance(n.args[0],(ast.JoinedStr,ast.BinOp,ast.Call)):
-                arg=n.args[0]
-                if not isinstance(arg,ast.Call) or (isinstance(arg.func,ast.Attribute) and arg.func.attr=='format'): add('PY003',n.lineno)
-            if fn in {'pickle.load','pickle.loads','dill.load','dill.loads'}: add('PY004',n.lineno,'high')
-            if no('verify') and fn.startswith(('requests.','httpx.')): add('PY005',n.lineno,'high')
-            if fn.endswith('.run') and yes('debug'): add('PY006',n.lineno,'high')
+        for rule,line,confidence in python_findings(source): add(rule,line,confidence)
     elif PurePosixPath(path).suffix.lower() in {'.js','.jsx','.ts','.tsx','.mjs','.cjs','.html'}:
-        for num,line in enumerate(lines,1):
-            if line.lstrip().startswith(('//','*','<!--')): continue
-            if re.search(r'\.innerHTML\s*=|dangerouslySetInnerHTML\s*=',line): add('JS001',num)
-            if re.search(r'\beval\s*\(|\bnew\s+Function\s*\(',line): add('JS002',num)
-            if re.search(r'(?:child_process\.)?\bexec(?:Sync)?\s*\(',line): add('JS003',num,'low','Heuristic match: verify this is Node child_process execution, then trace input.')
+        for rule,line,confidence in javascript_findings(source): add(rule,line,confidence)
+        warnings.append(f'{path}: JavaScript/HTML checks use lexical heuristics, not a full parser or cross-file analysis.')
     return findings,warnings
 
 DEMO=[

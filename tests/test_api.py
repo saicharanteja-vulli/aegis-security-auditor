@@ -1,4 +1,5 @@
 import time
+import json
 import pytest
 from fastapi.testclient import TestClient
 from aegis import app as module
@@ -63,7 +64,9 @@ def test_ai_saved(client,monkeypatch):
     obj=scan(client)
     class MockResponse:
         def raise_for_status(self): pass
-        def json(self): return {'message':{'content':'Verify input and use parameterized operations.'}}
+        def json(self):
+            finding=obj['findings'][0]
+            return {'done':True,'message':{'content':json.dumps({'status':'needs_review','source_line':finding['line'],'source_quote':finding['evidence'],'risk':'Potential risk if reachable.','assumptions':['Input may be external.'],'verification_steps':['Trace the input to its caller.'],'remediation':'Use the documented safe alternative.'})}}
     class LocalAI:
         def __init__(self,*a,**k): assert k['trust_env'] is False
         def __enter__(self): return self
@@ -81,3 +84,85 @@ def test_security_headers(client):
     r=client.get('/')
     assert r.headers['x-frame-options']=='DENY'
     assert "script-src 'self'" in r.headers['content-security-policy']
+
+def hybrid_scan(client,files,model='test'):
+    result=client.post('/api/scans',headers=H,json={'name':'Hybrid','files':files,'analysis_mode':'hybrid','model':model})
+    assert result.status_code==202,result.text
+    for _ in range(100):
+        obj=client.get('/api/scans/'+result.json()['id']).json()
+        if obj['state'] in {'completed','failed'}: return obj
+        time.sleep(.01)
+    pytest.fail('Hybrid worker did not finish')
+
+
+def test_hybrid_failure_retains_static(client,monkeypatch):
+    def offline(*args): raise module.httpx.ConnectError('offline')
+    monkeypatch.setattr(module.LocalReview,'detect',offline)
+    obj=hybrid_scan(client,[{'path':'x.py','content':'# UNIQUE_FULL_SOURCE_MARKER\neval(user)'}])
+    assert obj['state']=='completed' and len(obj['findings'])==1
+    assert obj['analysis'][0]['status']=='failed' and obj['findings'][0]['origin']=='static'
+    assert b'UNIQUE_FULL_SOURCE_MARKER' not in (module.DATA/'aegis.db').read_bytes()
+    assert 'static results remain' in obj['warnings'][0]
+
+
+def test_hybrid_busy_retains_static(client):
+    assert module.AI_SLOT.acquire(blocking=False)
+    try: obj=hybrid_scan(client,[{'path':'x.py','content':'eval(user)'}])
+    finally: module.AI_SLOT.release()
+    assert obj['state']=='completed' and len(obj['findings'])==1
+    assert obj['analysis'][0]['status']=='skipped_busy'
+
+
+def test_hybrid_union_and_export(client,monkeypatch):
+    from aegis.intelligence import validate_detections
+    def detect(self,path,source):
+        findings,diagnostics=validate_detections({'reviewable':True,'findings':[{'rule':'PY002','line':1,'quote':source,'reason':'Potential dynamic execution.'}]},path,source)
+        return {'findings':findings,'diagnostics':diagnostics,'usage':{'model':'test'}}
+    monkeypatch.setattr(module.LocalReview,'detect',detect)
+    obj=hybrid_scan(client,[{'path':'x.py','content':'eval(user)'}])
+    assert len(obj['findings'])==1 and obj['findings'][0]['origin']=='static+ai'
+    assert obj['analysis_mode']=='hybrid' and obj['analysis'][0]['status']=='completed'
+    report=client.get('/api/scans/'+obj['id']+'/report')
+    assert 'hybrid' in report.text and 'static+ai' in report.text
+
+
+@pytest.mark.parametrize('files,model',[
+    ([{'path':'x.py','content':'x'}],''),
+    ([{'path':'x.py','content':'x'*12001}],'test'),
+    ([{'path':f'{i}.py','content':'x'} for i in range(9)],'test')])
+def test_hybrid_limits(client,files,model):
+    assert client.post('/api/scans',headers=H,json={'name':'x','analysis_mode':'hybrid','model':model,'files':files}).status_code==422
+
+
+def test_invalid_explanation_not_saved(client,monkeypatch):
+    def invalid(*args): raise ValueError('fabricated source quote')
+    monkeypatch.setattr(module.LocalReview,'explain',invalid)
+    obj=scan(client)
+    r=client.post(f"/api/scans/{obj['id']}/findings/{obj['findings'][0]['id']}/explain",headers=H,json={'model':'test'})
+    assert r.status_code==503
+    saved=client.get('/api/scans/'+obj['id']).json()
+    assert saved['state']=='completed' and saved['findings'][0]['ai'] is None
+
+def test_only_completion_models_listed(client,monkeypatch):
+    class Reply:
+        def __init__(self,data): self.data=data
+        def raise_for_status(self): pass
+        def json(self): return self.data
+    class Models:
+        def __init__(self,*a,**kw): assert kw['trust_env'] is False
+        def __enter__(self): return self
+        def __exit__(self,*a): pass
+        def get(self,url): return Reply({'models':[{'name':'chat'},{'name':'vectors'}]})
+        def post(self,url,json): return Reply({'capabilities':['completion'] if json['model']=='chat' else ['embedding']})
+    monkeypatch.setattr(module.httpx,'Client',Models)
+    assert client.get('/api/models').json()=={'available':True,'models':['chat']}
+
+
+def test_existing_report_migration(tmp_path,monkeypatch):
+    import sqlite3
+    monkeypatch.setattr(module,'DATA',tmp_path)
+    with sqlite3.connect(tmp_path/'aegis.db') as db:
+        db.execute('CREATE TABLE scans(id TEXT PRIMARY KEY,name TEXT,created TEXT,state TEXT,progress INTEGER,files INTEGER,lines INTEGER,findings TEXT,warnings TEXT,events TEXT,error TEXT)')
+        db.execute("INSERT INTO scans VALUES('old','Prior review','2026-01-01','completed',100,1,1,'[]','[]','[]','')")
+    module.initialize();saved=module.get_scan('old')
+    assert saved['state']=='completed' and saved['analysis_mode']=='static' and saved['analysis']==[]
