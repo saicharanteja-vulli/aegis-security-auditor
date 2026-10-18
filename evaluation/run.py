@@ -84,7 +84,7 @@ def main():
             'generation_settings':{'temperature':0,'seed':42,'num_ctx':8192,'num_predict':1100,'think':False},
             'source_sha256':{str(path):hashlib.sha256(path.read_bytes()).hexdigest() for folder in ('aegis','evaluation') for path in sorted(Path(folder).rglob('*.py'))},
             'rows':[],'summary':{}}
-    try: report['git_revision']=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
+    try: report['git_revision']=subprocess.check_output(['git','rev-parse','HEAD'],text=True,stderr=subprocess.DEVNULL).strip()
     except (OSError,subprocess.CalledProcessError): report['git_revision']=None
     models=[model.strip() for model in args.models.split(',') if model.strip()]
     if models:
