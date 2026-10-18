@@ -1,0 +1,82 @@
+{
+  "models": {
+    "available": true,
+    "models": [
+      "qwen3:4b",
+      "qwen3:1.7b",
+      "qwen3:0.6b"
+    ]
+  },
+  "scan": {
+    "id": "b0e486c9c34b4de7aafc239a009d527b",
+    "name": "Synthetic local AI verification",
+    "created": "2026-10-18T05:06:33.754434+00:00",
+    "state": "completed",
+    "progress": 100,
+    "files": 1,
+    "lines": 2,
+    "findings": [
+      {
+        "origin": "static+ai",
+        "id": "a0445f68dd16f956a3a5",
+        "rule": "PY002",
+        "title": "Dynamic code execution",
+        "severity": "high",
+        "cwe": "CWE-95",
+        "path": "example.py",
+        "line": 2,
+        "confidence": "high",
+        "detail": "Review whether untrusted input can reach this operation.",
+        "evidence": "eval(user_input)",
+        "remediation": "Replace eval/exec with an explicit parser or a fixed mapping of supported operations.",
+        "reference": "https://docs.python.org/3/library/functions.html#eval",
+        "status": "open",
+        "note": "",
+        "ai": null
+      }
+    ],
+    "warnings": [],
+    "events": [
+      {
+        "at": "2026-10-18T05:06:33.754757+00:00",
+        "text": "Source received. Read-only scan started."
+      },
+      {
+        "at": "2026-10-18T05:06:36.008064+00:00",
+        "text": "Inspected 1 files with 11 static rules."
+      },
+      {
+        "at": "2026-10-18T05:06:36.008074+00:00",
+        "text": "1 review leads collected. Source discarded from working memory; report saved locally."
+      },
+      {
+        "at": "2026-10-18T05:06:36.008078+00:00",
+        "text": "Optional AI review finished. AI-origin leads and exact-quote validation remain unverified interpretations."
+      }
+    ],
+    "error": "",
+    "analysis_mode": "hybrid",
+    "model": "qwen3:4b",
+    "analysis": [
+      {
+        "path": "example.py",
+        "status": "completed",
+        "usage": {
+          "model": "qwen3:4b",
+          "prompt_tokens": 324,
+          "completion_tokens": 83,
+          "latency_ms": 2251.785
+        },
+        "diagnostics": {
+          "reviewable": true,
+          "invalid_predictions": [],
+          "duplicate_predictions": 0,
+          "notice": "Exact source validation establishes provenance, not vulnerability correctness."
+        }
+      }
+    ]
+  },
+  "markdown_export_pass": true,
+  "json_export_pass": true,
+  "notice": "Only synthetic fixture data; real local model run."
+}

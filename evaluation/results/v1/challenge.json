@@ -1,0 +1,812 @@
+{
+  "notice": "Post-test known-limit probes, separate from the 72-case comparison; no model calls, no detector tuning. These failures bound the meaning of the perfect main synthetic static score.",
+  "rows": [
+    {
+      "id": "template-interpolation",
+      "family": "challenge",
+      "path": "challenge/template-interpolation.js",
+      "source": "const view = `${eval(input)}`;",
+      "expected": [
+        {
+          "rule": "JS002",
+          "line": 1
+        }
+      ],
+      "rationale": "Template interpolation is masked together with literal template text.",
+      "strategy": "baseline",
+      "findings": [
+        {
+          "id": "9e058c59ee0655e02acf",
+          "rule": "JS002",
+          "title": "Dynamic JavaScript execution",
+          "severity": "high",
+          "cwe": "CWE-95",
+          "path": "challenge/template-interpolation.js",
+          "line": 1,
+          "confidence": "medium",
+          "detail": "Review whether untrusted input can reach this operation.",
+          "evidence": "const view = `${eval(input)}`;",
+          "remediation": "Replace dynamic evaluation with structured data parsing and allowlisted operations.",
+          "reference": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval",
+          "status": "open",
+          "note": "",
+          "ai": null
+        }
+      ],
+      "warnings": [],
+      "latency_ms": 0,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "matched": [
+        [
+          "JS002",
+          1
+        ]
+      ],
+      "false_positives": [],
+      "missed": [],
+      "invalid_predictions": 0,
+      "error": null,
+      "coverage_declined": false,
+      "case_pass": true,
+      "negative_case": false,
+      "true_negative": false,
+      "false_positive_case": false,
+      "unreviewed_negative": false
+    },
+    {
+      "id": "optional-eval",
+      "family": "challenge",
+      "path": "challenge/optional-eval.js",
+      "source": "eval?.(input);",
+      "expected": [
+        {
+          "rule": "JS002",
+          "line": 1
+        }
+      ],
+      "rationale": "Optional call syntax is outside the current regex.",
+      "strategy": "baseline",
+      "findings": [],
+      "warnings": [],
+      "latency_ms": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "matched": [],
+      "false_positives": [],
+      "missed": [
+        [
+          "JS002",
+          1
+        ]
+      ],
+      "invalid_predictions": 0,
+      "error": null,
+      "coverage_declined": false,
+      "case_pass": false,
+      "negative_case": false,
+      "true_negative": false,
+      "false_positive_case": false,
+      "unreviewed_negative": false
+    },
+    {
+      "id": "default-node-import",
+      "family": "challenge",
+      "path": "challenge/default-node-import.js",
+      "source": "import cp from \"node:child_process\";\ncp.exec(command);",
+      "expected": [
+        {
+          "rule": "JS003",
+          "line": 2
+        }
+      ],
+      "rationale": "Default-import Node alias is not modeled.",
+      "strategy": "baseline",
+      "findings": [
+        {
+          "id": "1f1b62f78c55812e5d9c",
+          "rule": "JS003",
+          "title": "Node shell execution",
+          "severity": "high",
+          "cwe": "CWE-78",
+          "path": "challenge/default-node-import.js",
+          "line": 2,
+          "confidence": "low",
+          "detail": "Heuristic match: verify this is Node child_process execution, then trace input.",
+          "evidence": "cp.exec(command);",
+          "remediation": "Use execFile or spawn with a fixed executable, separate arguments, and shell disabled.",
+          "reference": "https://nodejs.org/api/child_process.html",
+          "status": "open",
+          "note": "",
+          "ai": null
+        }
+      ],
+      "warnings": [],
+      "latency_ms": 0,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "matched": [
+        [
+          "JS003",
+          2
+        ]
+      ],
+      "false_positives": [],
+      "missed": [],
+      "invalid_predictions": 0,
+      "error": null,
+      "coverage_declined": false,
+      "case_pass": true,
+      "negative_case": false,
+      "true_negative": false,
+      "false_positive_case": false,
+      "unreviewed_negative": false
+    },
+    {
+      "id": "lambda-shadow",
+      "family": "challenge",
+      "path": "challenge/lambda-shadow.py",
+      "source": "handler = lambda *eval: eval(user)",
+      "expected": [],
+      "rationale": "Lambda varargs shadow a builtin; current lambda visitor does not bind varargs.",
+      "strategy": "baseline",
+      "findings": [
+        {
+          "id": "1ee007c4a86c594e9b7d",
+          "rule": "PY002",
+          "title": "Dynamic code execution",
+          "severity": "high",
+          "cwe": "CWE-95",
+          "path": "challenge/lambda-shadow.py",
+          "line": 1,
+          "confidence": "high",
+          "detail": "Review whether untrusted input can reach this operation.",
+          "evidence": "handler = lambda *eval: eval(user)",
+          "remediation": "Replace eval/exec with an explicit parser or a fixed mapping of supported operations.",
+          "reference": "https://docs.python.org/3/library/functions.html#eval",
+          "status": "open",
+          "note": "",
+          "ai": null
+        }
+      ],
+      "warnings": [],
+      "latency_ms": 0,
+      "tp": 0,
+      "fp": 1,
+      "fn": 0,
+      "matched": [],
+      "false_positives": [
+        [
+          "PY002",
+          1
+        ]
+      ],
+      "missed": [],
+      "invalid_predictions": 0,
+      "error": null,
+      "coverage_declined": false,
+      "case_pass": false,
+      "negative_case": true,
+      "true_negative": false,
+      "false_positive_case": true,
+      "unreviewed_negative": false
+    },
+    {
+      "id": "comprehension-shadow",
+      "family": "challenge",
+      "path": "challenge/comprehension-shadow.py",
+      "source": "import pickle\nvalues = [pickle.loads(blob) for pickle in adapters]",
+      "expected": [],
+      "rationale": "Comprehension target shadows the module; scope is not modeled.",
+      "strategy": "baseline",
+      "findings": [
+        {
+          "id": "b94d558312ef5af7b361",
+          "rule": "PY004",
+          "title": "Unsafe deserialization",
+          "severity": "high",
+          "cwe": "CWE-502",
+          "path": "challenge/comprehension-shadow.py",
+          "line": 2,
+          "confidence": "high",
+          "detail": "Review whether untrusted input can reach this operation.",
+          "evidence": "values = [pickle.loads(blob) for pickle in adapters]",
+          "remediation": "Do not deserialize untrusted pickle data. Use a validated JSON schema for external input.",
+          "reference": "https://docs.python.org/3/library/pickle.html",
+          "status": "open",
+          "note": "",
+          "ai": null
+        }
+      ],
+      "warnings": [],
+      "latency_ms": 0,
+      "tp": 0,
+      "fp": 1,
+      "fn": 0,
+      "matched": [],
+      "false_positives": [
+        [
+          "PY004",
+          2
+        ]
+      ],
+      "missed": [],
+      "invalid_predictions": 0,
+      "error": null,
+      "coverage_declined": false,
+      "case_pass": false,
+      "negative_case": true,
+      "true_negative": false,
+      "false_positive_case": true,
+      "unreviewed_negative": false
+    },
+    {
+      "id": "unrelated-method",
+      "family": "challenge",
+      "path": "challenge/unrelated-method.js",
+      "source": "customParser.eval(input);",
+      "expected": [],
+      "rationale": "A method called eval is not the global JavaScript builtin.",
+      "strategy": "baseline",
+      "findings": [
+        {
+          "id": "c5271a4fe2a1c8d175fc",
+          "rule": "JS002",
+          "title": "Dynamic JavaScript execution",
+          "severity": "high",
+          "cwe": "CWE-95",
+          "path": "challenge/unrelated-method.js",
+          "line": 1,
+          "confidence": "medium",
+          "detail": "Review whether untrusted input can reach this operation.",
+          "evidence": "customParser.eval(input);",
+          "remediation": "Replace dynamic evaluation with structured data parsing and allowlisted operations.",
+          "reference": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval",
+          "status": "open",
+          "note": "",
+          "ai": null
+        }
+      ],
+      "warnings": [],
+      "latency_ms": 0,
+      "tp": 0,
+      "fp": 1,
+      "fn": 0,
+      "matched": [],
+      "false_positives": [
+        [
+          "JS002",
+          1
+        ]
+      ],
+      "missed": [],
+      "invalid_predictions": 0,
+      "error": null,
+      "coverage_declined": false,
+      "case_pass": false,
+      "negative_case": true,
+      "true_negative": false,
+      "false_positive_case": true,
+      "unreviewed_negative": false
+    },
+    {
+      "id": "regex-after-return",
+      "family": "challenge",
+      "path": "challenge/regex-after-return.js",
+      "source": "function pattern() { return /eval(input)/; }",
+      "expected": [],
+      "rationale": "The lexical slash heuristic misses regex after return.",
+      "strategy": "baseline",
+      "findings": [
+        {
+          "id": "2a5a9172eb3a3073bd27",
+          "rule": "JS002",
+          "title": "Dynamic JavaScript execution",
+          "severity": "high",
+          "cwe": "CWE-95",
+          "path": "challenge/regex-after-return.js",
+          "line": 1,
+          "confidence": "medium",
+          "detail": "Review whether untrusted input can reach this operation.",
+          "evidence": "function pattern() { return /eval(input)/; }",
+          "remediation": "Replace dynamic evaluation with structured data parsing and allowlisted operations.",
+          "reference": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval",
+          "status": "open",
+          "note": "",
+          "ai": null
+        }
+      ],
+      "warnings": [],
+      "latency_ms": 0,
+      "tp": 0,
+      "fp": 1,
+      "fn": 0,
+      "matched": [],
+      "false_positives": [
+        [
+          "JS002",
+          1
+        ]
+      ],
+      "missed": [],
+      "invalid_predictions": 0,
+      "error": null,
+      "coverage_declined": false,
+      "case_pass": false,
+      "negative_case": true,
+      "true_negative": false,
+      "false_positive_case": true,
+      "unreviewed_negative": false
+    },
+    {
+      "id": "namespace-reassignment",
+      "family": "challenge",
+      "path": "challenge/namespace-reassignment.js",
+      "source": "let cp = require(\"child_process\");\ncp = customAdapter;\ncp.exec(command);",
+      "expected": [],
+      "rationale": "Node alias reassignment is not modeled; the custom adapter method is not a known shell API.",
+      "strategy": "baseline",
+      "findings": [
+        {
+          "id": "8180e2500a568f4791e0",
+          "rule": "JS003",
+          "title": "Node shell execution",
+          "severity": "high",
+          "cwe": "CWE-78",
+          "path": "challenge/namespace-reassignment.js",
+          "line": 3,
+          "confidence": "low",
+          "detail": "Heuristic match: verify this is Node child_process execution, then trace input.",
+          "evidence": "cp.exec(command);",
+          "remediation": "Use execFile or spawn with a fixed executable, separate arguments, and shell disabled.",
+          "reference": "https://nodejs.org/api/child_process.html",
+          "status": "open",
+          "note": "",
+          "ai": null
+        }
+      ],
+      "warnings": [],
+      "latency_ms": 0,
+      "tp": 0,
+      "fp": 1,
+      "fn": 0,
+      "matched": [],
+      "false_positives": [
+        [
+          "JS003",
+          3
+        ]
+      ],
+      "missed": [],
+      "invalid_predictions": 0,
+      "error": null,
+      "coverage_declined": false,
+      "case_pass": false,
+      "negative_case": true,
+      "true_negative": false,
+      "false_positive_case": true,
+      "unreviewed_negative": false
+    },
+    {
+      "id": "template-interpolation",
+      "family": "challenge",
+      "path": "challenge/template-interpolation.js",
+      "source": "const view = `${eval(input)}`;",
+      "expected": [
+        {
+          "rule": "JS002",
+          "line": 1
+        }
+      ],
+      "rationale": "Template interpolation is masked together with literal template text.",
+      "strategy": "static",
+      "findings": [],
+      "warnings": [
+        "challenge/template-interpolation.js: JavaScript/HTML checks use lexical heuristics, not a full parser or cross-file analysis."
+      ],
+      "latency_ms": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "matched": [],
+      "false_positives": [],
+      "missed": [
+        [
+          "JS002",
+          1
+        ]
+      ],
+      "invalid_predictions": 0,
+      "error": null,
+      "coverage_declined": false,
+      "case_pass": false,
+      "negative_case": false,
+      "true_negative": false,
+      "false_positive_case": false,
+      "unreviewed_negative": false
+    },
+    {
+      "id": "optional-eval",
+      "family": "challenge",
+      "path": "challenge/optional-eval.js",
+      "source": "eval?.(input);",
+      "expected": [
+        {
+          "rule": "JS002",
+          "line": 1
+        }
+      ],
+      "rationale": "Optional call syntax is outside the current regex.",
+      "strategy": "static",
+      "findings": [],
+      "warnings": [
+        "challenge/optional-eval.js: JavaScript/HTML checks use lexical heuristics, not a full parser or cross-file analysis."
+      ],
+      "latency_ms": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "matched": [],
+      "false_positives": [],
+      "missed": [
+        [
+          "JS002",
+          1
+        ]
+      ],
+      "invalid_predictions": 0,
+      "error": null,
+      "coverage_declined": false,
+      "case_pass": false,
+      "negative_case": false,
+      "true_negative": false,
+      "false_positive_case": false,
+      "unreviewed_negative": false
+    },
+    {
+      "id": "default-node-import",
+      "family": "challenge",
+      "path": "challenge/default-node-import.js",
+      "source": "import cp from \"node:child_process\";\ncp.exec(command);",
+      "expected": [
+        {
+          "rule": "JS003",
+          "line": 2
+        }
+      ],
+      "rationale": "Default-import Node alias is not modeled.",
+      "strategy": "static",
+      "findings": [],
+      "warnings": [
+        "challenge/default-node-import.js: JavaScript/HTML checks use lexical heuristics, not a full parser or cross-file analysis."
+      ],
+      "latency_ms": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "matched": [],
+      "false_positives": [],
+      "missed": [
+        [
+          "JS003",
+          2
+        ]
+      ],
+      "invalid_predictions": 0,
+      "error": null,
+      "coverage_declined": false,
+      "case_pass": false,
+      "negative_case": false,
+      "true_negative": false,
+      "false_positive_case": false,
+      "unreviewed_negative": false
+    },
+    {
+      "id": "lambda-shadow",
+      "family": "challenge",
+      "path": "challenge/lambda-shadow.py",
+      "source": "handler = lambda *eval: eval(user)",
+      "expected": [],
+      "rationale": "Lambda varargs shadow a builtin; current lambda visitor does not bind varargs.",
+      "strategy": "static",
+      "findings": [
+        {
+          "origin": "static",
+          "id": "1ee007c4a86c594e9b7d",
+          "rule": "PY002",
+          "title": "Dynamic code execution",
+          "severity": "high",
+          "cwe": "CWE-95",
+          "path": "challenge/lambda-shadow.py",
+          "line": 1,
+          "confidence": "high",
+          "detail": "Review whether untrusted input can reach this operation.",
+          "evidence": "handler = lambda *eval: eval(user)",
+          "remediation": "Replace eval/exec with an explicit parser or a fixed mapping of supported operations.",
+          "reference": "https://docs.python.org/3/library/functions.html#eval",
+          "status": "open",
+          "note": "",
+          "ai": null
+        }
+      ],
+      "warnings": [],
+      "latency_ms": 0,
+      "tp": 0,
+      "fp": 1,
+      "fn": 0,
+      "matched": [],
+      "false_positives": [
+        [
+          "PY002",
+          1
+        ]
+      ],
+      "missed": [],
+      "invalid_predictions": 0,
+      "error": null,
+      "coverage_declined": false,
+      "case_pass": false,
+      "negative_case": true,
+      "true_negative": false,
+      "false_positive_case": true,
+      "unreviewed_negative": false
+    },
+    {
+      "id": "comprehension-shadow",
+      "family": "challenge",
+      "path": "challenge/comprehension-shadow.py",
+      "source": "import pickle\nvalues = [pickle.loads(blob) for pickle in adapters]",
+      "expected": [],
+      "rationale": "Comprehension target shadows the module; scope is not modeled.",
+      "strategy": "static",
+      "findings": [
+        {
+          "origin": "static",
+          "id": "b94d558312ef5af7b361",
+          "rule": "PY004",
+          "title": "Unsafe deserialization",
+          "severity": "high",
+          "cwe": "CWE-502",
+          "path": "challenge/comprehension-shadow.py",
+          "line": 2,
+          "confidence": "high",
+          "detail": "Review whether untrusted input can reach this operation.",
+          "evidence": "values = [pickle.loads(blob) for pickle in adapters]",
+          "remediation": "Do not deserialize untrusted pickle data. Use a validated JSON schema for external input.",
+          "reference": "https://docs.python.org/3/library/pickle.html",
+          "status": "open",
+          "note": "",
+          "ai": null
+        }
+      ],
+      "warnings": [],
+      "latency_ms": 0,
+      "tp": 0,
+      "fp": 1,
+      "fn": 0,
+      "matched": [],
+      "false_positives": [
+        [
+          "PY004",
+          2
+        ]
+      ],
+      "missed": [],
+      "invalid_predictions": 0,
+      "error": null,
+      "coverage_declined": false,
+      "case_pass": false,
+      "negative_case": true,
+      "true_negative": false,
+      "false_positive_case": true,
+      "unreviewed_negative": false
+    },
+    {
+      "id": "unrelated-method",
+      "family": "challenge",
+      "path": "challenge/unrelated-method.js",
+      "source": "customParser.eval(input);",
+      "expected": [],
+      "rationale": "A method called eval is not the global JavaScript builtin.",
+      "strategy": "static",
+      "findings": [
+        {
+          "origin": "static",
+          "id": "c5271a4fe2a1c8d175fc",
+          "rule": "JS002",
+          "title": "Dynamic JavaScript execution",
+          "severity": "high",
+          "cwe": "CWE-95",
+          "path": "challenge/unrelated-method.js",
+          "line": 1,
+          "confidence": "medium",
+          "detail": "Review whether untrusted input can reach this operation.",
+          "evidence": "customParser.eval(input);",
+          "remediation": "Replace dynamic evaluation with structured data parsing and allowlisted operations.",
+          "reference": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval",
+          "status": "open",
+          "note": "",
+          "ai": null
+        }
+      ],
+      "warnings": [
+        "challenge/unrelated-method.js: JavaScript/HTML checks use lexical heuristics, not a full parser or cross-file analysis."
+      ],
+      "latency_ms": 0,
+      "tp": 0,
+      "fp": 1,
+      "fn": 0,
+      "matched": [],
+      "false_positives": [
+        [
+          "JS002",
+          1
+        ]
+      ],
+      "missed": [],
+      "invalid_predictions": 0,
+      "error": null,
+      "coverage_declined": false,
+      "case_pass": false,
+      "negative_case": true,
+      "true_negative": false,
+      "false_positive_case": true,
+      "unreviewed_negative": false
+    },
+    {
+      "id": "regex-after-return",
+      "family": "challenge",
+      "path": "challenge/regex-after-return.js",
+      "source": "function pattern() { return /eval(input)/; }",
+      "expected": [],
+      "rationale": "The lexical slash heuristic misses regex after return.",
+      "strategy": "static",
+      "findings": [
+        {
+          "origin": "static",
+          "id": "2a5a9172eb3a3073bd27",
+          "rule": "JS002",
+          "title": "Dynamic JavaScript execution",
+          "severity": "high",
+          "cwe": "CWE-95",
+          "path": "challenge/regex-after-return.js",
+          "line": 1,
+          "confidence": "medium",
+          "detail": "Review whether untrusted input can reach this operation.",
+          "evidence": "function pattern() { return /eval(input)/; }",
+          "remediation": "Replace dynamic evaluation with structured data parsing and allowlisted operations.",
+          "reference": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval",
+          "status": "open",
+          "note": "",
+          "ai": null
+        }
+      ],
+      "warnings": [
+        "challenge/regex-after-return.js: JavaScript/HTML checks use lexical heuristics, not a full parser or cross-file analysis."
+      ],
+      "latency_ms": 0,
+      "tp": 0,
+      "fp": 1,
+      "fn": 0,
+      "matched": [],
+      "false_positives": [
+        [
+          "JS002",
+          1
+        ]
+      ],
+      "missed": [],
+      "invalid_predictions": 0,
+      "error": null,
+      "coverage_declined": false,
+      "case_pass": false,
+      "negative_case": true,
+      "true_negative": false,
+      "false_positive_case": true,
+      "unreviewed_negative": false
+    },
+    {
+      "id": "namespace-reassignment",
+      "family": "challenge",
+      "path": "challenge/namespace-reassignment.js",
+      "source": "let cp = require(\"child_process\");\ncp = customAdapter;\ncp.exec(command);",
+      "expected": [],
+      "rationale": "Node alias reassignment is not modeled; the custom adapter method is not a known shell API.",
+      "strategy": "static",
+      "findings": [
+        {
+          "origin": "static",
+          "id": "8180e2500a568f4791e0",
+          "rule": "JS003",
+          "title": "Node shell execution",
+          "severity": "high",
+          "cwe": "CWE-78",
+          "path": "challenge/namespace-reassignment.js",
+          "line": 3,
+          "confidence": "medium",
+          "detail": "Review whether untrusted input can reach this operation.",
+          "evidence": "cp.exec(command);",
+          "remediation": "Use execFile or spawn with a fixed executable, separate arguments, and shell disabled.",
+          "reference": "https://nodejs.org/api/child_process.html",
+          "status": "open",
+          "note": "",
+          "ai": null
+        }
+      ],
+      "warnings": [
+        "challenge/namespace-reassignment.js: JavaScript/HTML checks use lexical heuristics, not a full parser or cross-file analysis."
+      ],
+      "latency_ms": 0,
+      "tp": 0,
+      "fp": 1,
+      "fn": 0,
+      "matched": [],
+      "false_positives": [
+        [
+          "JS003",
+          3
+        ]
+      ],
+      "missed": [],
+      "invalid_predictions": 0,
+      "error": null,
+      "coverage_declined": false,
+      "case_pass": false,
+      "negative_case": true,
+      "true_negative": false,
+      "false_positive_case": true,
+      "unreviewed_negative": false
+    }
+  ],
+  "summary": {
+    "baseline": {
+      "cases": 8,
+      "tp": 2,
+      "fp": 5,
+      "fn": 1,
+      "precision": 0.2857,
+      "recall": 0.6667,
+      "f1": 0.4,
+      "exact_case_pass_rate": 0.25,
+      "negative_cases": 5,
+      "true_negative_cases": 0,
+      "false_positive_cases": 5,
+      "false_positive_case_rate": 1.0,
+      "unreviewed_negative_cases": 0,
+      "specificity": 0.0,
+      "errors": 0,
+      "declined_cases": 0,
+      "invalid_predictions": 0,
+      "p50_ms": 0,
+      "p95_ms": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0
+    },
+    "static": {
+      "cases": 8,
+      "tp": 0,
+      "fp": 5,
+      "fn": 3,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "exact_case_pass_rate": 0.0,
+      "negative_cases": 5,
+      "true_negative_cases": 0,
+      "false_positive_cases": 5,
+      "false_positive_case_rate": 1.0,
+      "unreviewed_negative_cases": 0,
+      "specificity": 0.0,
+      "errors": 0,
+      "declined_cases": 0,
+      "invalid_predictions": 0,
+      "p50_ms": 0,
+      "p95_ms": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0
+    }
+  }
+}

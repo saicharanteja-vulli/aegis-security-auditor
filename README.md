@@ -1,65 +1,62 @@
-# Aegis — Autonomous AI Security Auditor
+# Aegis - evaluated local AI code review
 
-A standalone, local security-review workspace. Upload source, let a background worker inspect it, review evidence, ask a local Ollama model for context, and export a sourced report. Aegis uses an ivory / blue editorial interface inspired by Orbit and Relay, with its own animated radar identity.
+A read-only code-review prototype with 11 static rule families, optional local-model suggestions and source-validated structured explanations. Static analysis is the default because the recorded local AI detector is less reliable.
 
-![Aegis security review dashboard](docs/aegis-dashboard.png)
+![Aegis evaluation dashboard](docs/aegis-evaluation.jpg)
 
-## Run
+## v2: eight repaired cases, with the history retained
 
-Requires Python 3.11+ (tested on 3.14).
+- Python lambda varargs/kwargs and comprehension targets get bounded scope handling, including the surrounding function. Defaults and outer iterable expressions remain visible to analysis.
+- JavaScript, JSX, TypeScript and TSX now use pinned Tree-sitter syntax grammars instead of lexical masking. Executable template substitutions are traversed while inert text/comments/regex bodies are ignored.
+- Optional global eval calls, default Node child_process imports and sequential alias reassignment are handled for the tested patterns; an unrelated object method named eval is not treated as the global builtin.
+- All eight original edge cases pass, including the two previously observed regressions. Sources and expected labels are unchanged; tests compare them with the original failure record.
+- **176 automated tests pass**, including related syntax/scope variants, API/AI contracts, redaction, migrations and exports. The CI workflow also gates all eight repaired cases.
+
+These are development/regression cases used to build the repair, not an independent holdout. The previous failures remain in [the v1 report](evaluation/results/challenge.md); the [new repaired-case report](evaluation/results/v2/challenge.md) records 3 TP / 0 FP / 0 FN across 8 cases (3 positive, 5 negative). No broad language coverage, exploitability, production accuracy or independent generalization claim is justified.
+
+## Run locally
+
+Python 3.11+; verified locally on 3.14, with hosted checks on the PR. Run `sh start.sh`, then open http://127.0.0.1:8090. First run installs pinned requirements into .venv, including Tree-sitter and its JS/TS grammars. The startup dependency check also handles older installations missing the grammars. Set `PORT` for another port.
+
+Optional Ollama defaults to http://127.0.0.1:11434; `AEGIS_OLLAMA_URL` accepts another HTTP loopback endpoint. Install a completion model separately. Aegis never downloads one automatically. Model requests have no tools and cannot execute/edit code.
+
+Explore the intentionally unsafe sample, inspect each finding and source line, record a human decision, and export Markdown/JSON. Source is parsed/read, never executed or installed. Complete uploads are not persisted.
+
+## Recorded evaluation
+
+[Protocol and reproduction](evaluation/PROTOCOL.md) | [Final 72-case comparison](evaluation/results/v2/test-qwen3-4b.md) | [24 development cases](evaluation/results/v2/dev-static.md) | [Explanation contracts](evaluation/results/v2/explanations-qwen3-4b.md)
+
+The original 96 synthetic fixtures are unchanged: 24 development and 72 test. The test split has 35 positive cases containing 36 expected leads, 36 negatives and one parse-abstention case. These public, co-designed fixtures are regression evidence, not independent security accuracy. AI and hybrid share a response per case.
+
+| Strategy / 72 test cases | TP | FP | FN | Precision | Recall | F1 |
+|---|---:|---:|---:|---:|---:|---:|
+| baseline | 28 | 19 | 8 | 0.5957 | 0.7778 | 0.6747 |
+| static | 36 | 0 | 0 | 1.0 | 1.0 | 1.0 |
+| ai:qwen3:4b | 19 | 48 | 17 | 0.2836 | 0.5278 | 0.3689 |
+| hybrid:qwen3:4b | 36 | 48 | 0 | 0.4286 | 1.0 | 0.6 |
+
+Explanation contract rerun: **12/12 structural passes**. This does not measure independent semantic correctness. Exact quotes establish provenance, not the truth of the model's interpretation or the validity of a fix.
+
+AI still adds many false positives; it did not improve detection in this experiment. Invalid proposals count as benchmark FPs even when the product withholds them. Provider errors/declines are retained rather than treated as successful clean reviews. Full JSON/JSONL evidence includes source/labels, raw outputs, diagnostics, model digests, dependency versions, settings, source hashes and timing. Original v1 results and the separately labeled initial v2 rerun are preserved.
+
+## Architecture and boundaries
+
+FastAPI -> bounded workers -> Python AST / JS and TS syntax trees / secret text checks -> optional loopback Ollama -> evidence validation -> SQLite -> human triage and export. Vanilla browser UI. Static + local AI is opt-in; the union never removes a static finding and falls back to saved static results when AI is busy/offline/invalid.
+
+Static limits: 100 files, 150,000 characters each, 2 MB source, 4 MB HTTP body. AI mode: 8 files, 12,000 characters each, 48,000 total. Two workers, four queued/running jobs, one model request at a time.
+
+**Single-user loopback only; no authentication and no public tunnels.** Host/Origin/write-header checks and CSP reduce accidental cross-origin access; local programs/users may still access the service. AI detection sends selected source after best-effort redaction to local Ollama; explanations send only a redacted finding. Private-key bodies are masked with line positions retained. Redaction is not guaranteed. Names, redacted excerpts, findings, AI text and notes persist in data/aegis.db; complete source uploads are not saved. Review exports before sharing.
+
+A finding is a review lead, not a proven exploit. Parsing does not supply type resolution, a cross-file call graph, full control-flow/taint analysis, closure/hoisting/runtime semantics or input reachability. HTML coverage is limited to inline scripts; malformed scripts produce a coverage warning and only secret/key text checks. Python global/nonlocal/walrus/complex control flow and JS dynamic properties, complex aliasing and interprocedural flows remain limited. There is no dependency advisory database, runtime attack testing or verified automatic remediation. Clean scans do not prove security.
+
+## Verify
 
 ```sh
-git clone https://github.com/saicharanteja-vulli/aegis-security-auditor.git
-cd aegis-security-auditor
-sh start.sh
+python -m pytest -q
+node --check static/app.js
+python -m evaluation.run --split test --output /tmp/aegis-static
+python -m evaluation.gate /tmp/aegis-static.json
+python -m evaluation.probe --output /tmp/aegis-repaired
 ```
 
-Open http://127.0.0.1:8090. First run installs the pinned Python dependencies from PyPI. Set `PORT` to use another port. The `.venv` is created locally and is excluded from the repository.
-
-## Try it
-
-1. Click **Explore a sample** to inspect three intentionally vulnerable example files.
-2. The scan finds five review leads: interpolated SQL, shell execution, unsafe deserialization, disabled TLS verification, and an HTML injection sink.
-3. Open a finding to see its file, line, evidence, confidence, remediation and reference.
-4. Optionally start Ollama, choose an installed model in **Local intelligence**, and click **Explain with local AI**. This sends only that finding's redacted evidence to `127.0.0.1:11434`. No cloud model is used and no model is downloaded automatically.
-5. Save a review state and note, then export Markdown or JSON.
-6. Use **Start a review** for your own files or folder. Only scan code you own or are authorized to inspect.
-
-The sample is deliberately unsafe and must never be deployed. File `examples/review_fixture.py` is another upload fixture; it is not an executable example.
-
-## Features and architecture
-
-- FastAPI server, SQLite report storage, bounded background thread pool, vanilla JS/CSS.
-- 11 static rules: Python AST analysis, JavaScript/TypeScript heuristics, credential and private-key markers.
-- Automatic inspect → collect → prioritize → report pipeline. AI explanations are explicitly requested, not autonomous exploitation or remediation.
-- Live scan progress, coverage warnings, search, priority/state filters, review notes and persistent scan history.
-- CWE identifiers and links to OWASP, Python, MDN and Node guidance.
-- Local Ollama model discovery; explanation failures do not invalidate static reports.
-- 100 files per scan, 150,000 characters per file (browser limits files to 150 KB), 2 MB source total, 4 MB HTTP body. Two scan workers, four queued/running jobs, one concurrent AI request.
-- No repository clone, URL crawl, shell execution, package installation from uploaded projects, or automatic file changes.
-
-## Boundaries and limitations
-
-**This is a local single-user MVP, not a production security audit service.** It binds to loopback, restricts Host and Origin, requires a custom header for writes, and uses a strict content-security policy. There is no account system. Do not put it behind a public tunnel or proxy. Other programs/users with access to this Mac can potentially access its local API and data.
-
-Findings identify patterns, not proven exploitable vulnerabilities. Severity reflects the pattern, not a complete assessment of application impact. Confidence describes the match. There is no whole-program taint tracking, dependency advisory database, live-system penetration testing, cross-file call graph or exhaustive JavaScript parser. Python alias resolution is basic and does not model shadowing. Dynamic SQL stored in an earlier variable can be missed. Comments and strings can cause text-check false positives. Review or dismissal is a human label, not verification of a code fix.
-
-Uploaded complete source is not saved to disk. Names, findings, evidence, notes and explanations are retained under `data/aegis.db`. Redaction is best effort and does not guarantee removal of every secret. Do not upload code you are not permitted to inspect. Review exported reports before sharing. AI explanations may contain errors and cannot run tools or edit source. A clean scan is not proof of security.
-
-Only the latest 100 scans are listed in the UI. Reports remain in the database. Scan history is local to this installation. Restarting the app marks interrupted scans failed instead of claiming completion.
-
-## Tests
-
-```sh
-.venv/bin/python -m pytest -q
-```
-
-43 automated tests cover risky and safer Python examples, JS checks, redaction, malformed syntax, path rejection, read-only behavior, background scan completion, reports, triage persistence, request boundaries, and AI success/failure handling. Real Ollama and browser checks are separate from unit tests.
-
-## Source guidance
-
-- SQL injection: https://community.owasp.org/attacks/SQL_Injection
-- Command injection: https://community.owasp.org/attacks/Command_Injection
-- Unsafe deserialization: https://docs.python.org/3/library/pickle.html
-
-Aegis is independent of Orbit and Relay. Neither app needs to be running.
+Implementation and fixtures were developed with AI assistance. Resume descriptions can cite the prototype, reproducible comparisons, evidence validation and verified regression coverage; avoid unsupported claims of independent authorship, real incidents prevented, production adoption, exploits or accuracy. Aegis runs independently of Orbit and Relay.
